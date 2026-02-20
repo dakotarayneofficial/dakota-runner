@@ -14,7 +14,7 @@
     .btn { appearance:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:var(--fg); padding:10px 12px; border-radius:12px; font-weight:700; cursor:pointer; }
     .btn:active { transform: translateY(1px); }
     .muted { color: var(--muted); font-size: 13px; }
-    canvas { width:100%; height:auto; display:block; border-radius:18px; background:#070711; box-shadow: 0 10px 30px rgba(0,0,0,.45); touch-action:none; }
+    canvas { width:100%; height:auto; display:block; border-radius:18px; background:#070711; box-shadow: 0 10px 30px rgba(0,0,0,.45); touch-action:none; outline:none; }
     .hint { margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
     .kbd { padding:2px 8px; border:1px solid rgba(255,255,255,.2); border-bottom-width:2px; border-radius:8px; background:rgba(255,255,255,.06); font-weight:800; }
   </style>
@@ -33,9 +33,7 @@
         <button class="btn" id="btnPause">Pause</button>
       </div>
     </div>
-
     <canvas id="c" width="960" height="540"></canvas>
-
     <div class="hint">
       <div class="muted">
         <span class="kbd">Space</span>/<span class="kbd">Tap</span> jump (hold = higher) • <span class="kbd">P</span> pause • <span class="kbd">R</span> restart • <span class="kbd">H</span> debug
@@ -47,110 +45,98 @@
 
 <script>
 (() => {
-  // ---------- Canvas ----------
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
-  // --- Simple inline SVG sprites (no external assets) ---
-function svgToImg(svg) {
-  const img = new Image();
-  // encode safely
-  const encoded = encodeURIComponent(svg)
-    .replace(/'/g, "%27")
-    .replace(/"/g, "%22");
-  img.src = `data:image/svg+xml;charset=utf-8,${encoded}`;
-  return img;
-}
+  // Make canvas focusable for keyboard
+  canvas.tabIndex = 0;
 
-// "Cartoon Dakota" mini sprites: run1, run2, jump
-const SPR = {
-  run1: svgToImg(`
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
+  // --- Inline SVG → Image loader ---
+  function svgToDataUrl(svg) {
+    const encoded = encodeURIComponent(svg.trim())
+      .replace(/'/g, "%27")
+      .replace(/"/g, "%22");
+    return `data:image/svg+xml;charset=utf-8,${encoded}`;
+  }
+
+  const spriteSVGs = {
+    run1: `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
   <rect width="64" height="96" fill="none"/>
-  <!-- hair -->
   <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#2f201b"/>
   <path d="M48 28c10 2 14 10 10 18-2 4-7 6-12 2" fill="#2f201b"/>
-  <!-- face -->
   <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
-  <!-- eyes/liner -->
   <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
   <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
   <path d="M32 19c2-2 5-3 8-3" stroke="#111" stroke-width="1.5" fill="none" opacity=".55"/>
-  <!-- top (crop tee) -->
   <path d="M24 40c2-8 8-12 14-12s12 4 14 12v16H24V40z" fill="#ffffff" opacity=".95"/>
   <path d="M24 44h28" stroke="#000" opacity=".12"/>
-  <!-- denim shorts -->
   <path d="M24 56h28v12c0 3-2 5-5 5H29c-3 0-5-2-5-5V56z" fill="#2a6fb8"/>
   <path d="M24 60h28" stroke="#0b2a45" opacity=".35"/>
   <path d="M38 56v17" stroke="#0b2a45" opacity=".28"/>
-  <!-- legs (skin) -->
   <path d="M30 70v10c0 4-2 6-4 6h-2" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
   <path d="M42 70v8c0 6 4 10 10 10" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
-  <!-- boots -->
   <path d="M18 86h14v6H18z" fill="#ffffff" opacity=".82"/>
   <path d="M42 86h18v6H42z" fill="#ffffff" opacity=".82"/>
-  <!-- outline pop -->
   <path d="M24 40c2-8 8-12 14-12s12 4 14 12v28c0 3-2 5-5 5H29c-3 0-5-2-5-5V40z" fill="none" stroke="#000" opacity=".14"/>
-</svg>`),
+</svg>`,
 
-  run2: svgToImg(`
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
+    run2: `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
   <rect width="64" height="96" fill="none"/>
-  <!-- hair -->
   <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#2f201b"/>
   <path d="M46 30c10 3 13 12 8 19-3 4-9 5-13 0" fill="#2f201b"/>
-  <!-- face -->
   <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
-  <!-- eyes/liner -->
   <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
   <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
   <path d="M32 19c2-2 5-3 8-3" stroke="#111" stroke-width="1.5" fill="none" opacity=".55"/>
-  <!-- top -->
   <path d="M24 40c2-8 8-12 14-12s12 4 14 12v16H24V40z" fill="#ffffff" opacity=".95"/>
   <path d="M24 44h28" stroke="#000" opacity=".12"/>
-  <!-- denim shorts -->
   <path d="M24 56h28v12c0 3-2 5-5 5H29c-3 0-5-2-5-5V56z" fill="#2a6fb8"/>
   <path d="M24 60h28" stroke="#0b2a45" opacity=".35"/>
   <path d="M38 56v17" stroke="#0b2a45" opacity=".28"/>
-  <!-- legs (swap stride) -->
   <path d="M30 70v8c0 6 4 10 10 10" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
   <path d="M42 70v10c0 4-2 6-4 6h-2" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
-  <!-- boots -->
   <path d="M28 86h18v6H28z" fill="#ffffff" opacity=".82"/>
   <path d="M42 86h14v6H42z" fill="#ffffff" opacity=".82"/>
-  <!-- outline pop -->
   <path d="M24 40c2-8 8-12 14-12s12 4 14 12v28c0 3-2 5-5 5H29c-3 0-5-2-5-5V40z" fill="none" stroke="#000" opacity=".14"/>
-</svg>`),4v6H42z" fill="#fff" opacity=".75"/>
-</svg>`),
+</svg>`,
 
-  jump: svgToImg(`
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
+    jump: `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
   <rect width="64" height="96" fill="none"/>
-  <!-- hair -->
   <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#2f201b"/>
   <path d="M50 28c10 2 14 10 10 18-2 4-7 6-12 2" fill="#2f201b"/>
-  <!-- face -->
   <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
-  <!-- eyes/liner -->
   <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
   <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-  <!-- top -->
   <path d="M24 40c2-8 8-12 14-12s12 4 14 12v16H24V40z" fill="#ffffff" opacity=".95"/>
-  <!-- denim shorts -->
   <path d="M24 56h28v12c0 3-2 5-5 5H29c-3 0-5-2-5-5V56z" fill="#2a6fb8"/>
   <path d="M24 60h28" stroke="#0b2a45" opacity=".35"/>
   <path d="M38 56v17" stroke="#0b2a45" opacity=".28"/>
-  <!-- legs tucked -->
   <path d="M30 70c0 10 8 10 10 16" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
   <path d="M42 70c0 10-6 10-8 16" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
-  <!-- boots -->
   <path d="M26 86h16v6H26z" fill="#ffffff" opacity=".82"/>
   <path d="M38 86h18v6H38z" fill="#ffffff" opacity=".82"/>
-  <!-- outline pop -->
   <path d="M24 40c2-8 8-12 14-12s12 4 14 12v28c0 3-2 5-5 5H29c-3 0-5-2-5-5V40z" fill="none" stroke="#000" opacity=".14"/>
-</svg>`),
-};
+</svg>`
+  };
+
+  const SPR = {};
+  let spritesReady = false;
+
+  // Load sprites
+  let loadedCount = 0;
+  Object.keys(spriteSVGs).forEach(key => {
+    const img = new Image();
+    img.onload = () => {
+      loadedCount++;
+      if (loadedCount === 3) {
+        spritesReady = true;
+        console.log("All sprites loaded");
+      }
+    };
+    img.src = svgToDataUrl(spriteSVGs[key]);
+    SPR[key] = img;
+  });
 
   // ---------- UI buttons ----------
   const btnPlay = document.getElementById('btnPlay');
@@ -160,7 +146,6 @@ const SPR = {
   // ---------- Helpers ----------
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const lerp = (a,b,t)=>a+(b-a)*t;
-  const rand = (a,b)=>a+Math.random()*(b-a);
 
   // Deterministic RNG (Mulberry32)
   function mulberry32(seed) {
@@ -178,17 +163,13 @@ const SPR = {
   let state = STATE.TITLE;
   let debug = false;
 
-  // World
   const groundY = 420;
   let camX = 0;
-
-  // Speed/difficulty
-  let speed = 320;          // px/s
+  let speed = 320;
   let speedTarget = 320;
-  let speedRamp = 10;       // px/s increase per 10s-ish (we'll apply gradually)
+  let speedRamp = 10;
   let timeAlive = 0;
 
-  // Player (Cartoon Dakota as shapes)
   const player = {
     x: 180,
     y: groundY,
@@ -197,24 +178,19 @@ const SPR = {
     onGround: true,
     jumpHeld: false,
     jumpHoldTime: 0,
-    slide: false,
-    slideT: 0,
-    invincible: 0, // seconds
+    invincible: 0,
     hurtShake: 0,
   };
 
-  // Entities
   let obstacles = [];
   let stars = [];
   let particles = [];
   let powerups = [];
 
-  // Spawning
   let nextObstacleX = 600;
   let nextStarSetX = 680;
   let nextCrownX = 2200;
 
-  // Scoring
   let distance = 0;
   let score = 0;
   let starsCollected = 0;
@@ -222,14 +198,12 @@ const SPR = {
   let multiplier = 1;
   let nearMissFlash = 0;
 
-  // Best
   const LS_KEY = 'sts_best_v1';
   const best = (() => {
     try { return JSON.parse(localStorage.getItem(LS_KEY)) || {score:0, dist:0}; }
     catch { return {score:0, dist:0}; }
   })();
 
-  // RNG mode (free run = random)
   let rng = Math.random;
   function setFreeRunRng() { rng = Math.random; }
   function setDailyRng() {
@@ -251,56 +225,45 @@ const SPR = {
     speed = 320;
     speedTarget = 320;
     timeAlive = 0;
-
     obstacles = [];
     stars = [];
     particles = [];
     powerups = [];
-
     nextObstacleX = 650;
     nextStarSetX = 720;
     nextCrownX = 2200;
-
     distance = 0;
     score = 0;
     starsCollected = 0;
     streak = 0;
     multiplier = 1;
     nearMissFlash = 0;
-
     player.y = groundY;
     player.vy = 0;
     player.onGround = true;
     player.jumpHeld = false;
     player.jumpHoldTime = 0;
-    player.slide = false;
-    player.slideT = 0;
     player.invincible = 0;
     player.hurtShake = 0;
-
     if (daily) setDailyRng(); else setFreeRunRng();
+    canvas.focus();
   }
 
   function gameOver() {
     state = STATE.OVER;
-    // Save best
     if (score > best.score) best.score = score;
     if (distance > best.dist) best.dist = distance;
     try { localStorage.setItem(LS_KEY, JSON.stringify(best)); } catch {}
   }
 
   // ---------- Input ----------
-  let pointerDown = false;
-  let pointerStartY = 0;
-  let pointerStartT = 0;
-
   function jumpPress() {
+    canvas.focus();
     if (state === STATE.TITLE) { resetRun({daily:false}); return; }
     if (state === STATE.OVER) { resetRun({daily:false}); return; }
     if (state === STATE.PAUSE) { state = STATE.RUN; return; }
-
     if (state !== STATE.RUN) return;
-    if (player.onGround && !player.slide) {
+    if (player.onGround) {
       player.vy = -560;
       player.onGround = false;
       player.jumpHeld = true;
@@ -318,57 +281,51 @@ const SPR = {
     else if (state === STATE.PAUSE) state = STATE.RUN;
   }
 
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jumpPress(); }
     if (e.code === 'KeyP') togglePause();
     if (e.code === 'KeyR') resetRun({daily:false});
     if (e.code === 'KeyH') debug = !debug;
   }, {passive:false});
 
-  document.addEventListener('keyup', (e) => {
+  document.addEventListener('keyup', e => {
     if (e.code === 'Space' || e.code === 'ArrowUp') jumpRelease();
   });
 
-  canvas.addEventListener('pointerdown', (e) => {
+  canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
-    pointerDown = true;
-    pointerStartY = e.clientY;
-    pointerStartT = performance.now();
+    canvas.focus();
     jumpPress();
   }, {passive:false});
 
-  canvas.addEventListener('pointerup', (e) => {
+  canvas.addEventListener('pointerup', e => {
     e.preventDefault();
-    pointerDown = false;
     jumpRelease();
   }, {passive:false});
 
-  // prevent scroll while touching canvas
-  canvas.addEventListener('touchstart', (e)=>e.preventDefault(), {passive:false});
-  canvas.addEventListener('touchmove',  (e)=>e.preventDefault(), {passive:false});
+  canvas.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
+  canvas.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
 
   btnPlay.onclick = () => resetRun({daily:false});
   btnRestart.onclick = () => resetRun({daily:false});
   btnPause.onclick = () => togglePause();
 
-  // ---------- Spawning ----------
+  // ---------- Spawning & Particles (unchanged except minor cleanup) ----------
   function spawnObstacle(x) {
-    // Types: cone (small), stool (tall)
     const r = rng();
-    const type = (r < 0.7) ? 'cone' : 'stool';
+    const type = r < 0.7 ? 'cone' : 'stool';
     const w = type === 'cone' ? 26 : 34;
     const h = type === 'cone' ? 34 : 52;
     obstacles.push({x, y: groundY, w, h, type, passed:false});
   }
 
   function spawnStarSet(x) {
-    // Arc of stars
-    const count = 3 + Math.floor(rng()*5); // 3-7
+    const count = 3 + Math.floor(rng()*5);
     const arcH = 90 + rng()*60;
     const spacing = 26;
-    for (let i=0;i<count;i++) {
-      const t = i / Math.max(1,count-1);
-      const y = groundY - 40 - Math.sin(t*Math.PI) * arcH;
+    for (let i = 0; i < count; i++) {
+      const t = i / Math.max(1, count-1);
+      const y = groundY - 40 - Math.sin(t * Math.PI) * arcH;
       stars.push({x: x + i*spacing, y, r: 10, taken:false, setId: x});
     }
   }
@@ -377,13 +334,12 @@ const SPR = {
     powerups.push({x, y: groundY - 120, r: 14, type:'crown', taken:false});
   }
 
-  // ---------- Particles ----------
   function spawnBurst(x,y,n=16,spd=260) {
-    for (let i=0;i<n;i++) {
+    for (let i = 0; i < n; i++) {
       const a = rng()*Math.PI*2;
       const s = spd*(0.35 + rng()*0.65);
       particles.push({
-        x,y,
+        x, y,
         vx: Math.cos(a)*s,
         vy: Math.sin(a)*s,
         life: 0.6 + rng()*0.5
@@ -407,23 +363,21 @@ const SPR = {
     ctx.fillText(str, x, y);
   }
 
-  // Precompute noise for grain
+  // Grain
   const grain = document.createElement('canvas');
   grain.width = 160; grain.height = 90;
   const gctx = grain.getContext('2d');
-  const img = gctx.createImageData(grain.width, grain.height);
-  for (let i=0;i<img.data.length;i+=4) {
+  const imgData = gctx.createImageData(grain.width, grain.height);
+  for (let i = 0; i < imgData.data.length; i += 4) {
     const v = (Math.random()*255)|0;
-    img.data[i]=v; img.data[i+1]=v; img.data[i+2]=v; img.data[i+3]=35;
+    imgData.data[i] = v; imgData.data[i+1] = v; imgData.data[i+2] = v; imgData.data[i+3] = 35;
   }
-  gctx.putImageData(img,0,0);
+  gctx.putImageData(imgData, 0, 0);
 
   // ---------- Main Loop ----------
   let last = performance.now();
   let acc = 0;
   const dt = 1/60;
-
-  // FPS for debug
   let fps = 60, fpsAcc=0, fpsN=0;
 
   function tick(now) {
@@ -431,7 +385,6 @@ const SPR = {
     last = now;
     acc += frame;
 
-    // FPS
     fpsAcc += 1/frame; fpsN++;
     if (fpsN >= 20) { fps = fpsAcc/fpsN; fpsAcc=0; fpsN=0; }
 
@@ -445,28 +398,24 @@ const SPR = {
 
   function step(dt) {
     if (state !== STATE.RUN) return;
-
     timeAlive += dt;
 
-    // Speed ramp
     speedTarget = 320 + (timeAlive * speedRamp);
     speed = lerp(speed, speedTarget, 0.04);
 
-    // Camera + distance
     camX += speed * dt;
     distance = Math.floor(camX / 20);
-    score += Math.floor(speed * dt * 0.15); // distance score
+    score += Math.floor(speed * dt * 0.15);
 
-    // Crown timer
     if (player.invincible > 0) player.invincible = Math.max(0, player.invincible - dt);
 
-    // Jump hold (variable height)
-    if (player.jumpHeld && player.vy < 0 && player.jumpHoldTime < 0.14) {
-      player.vy -= 900 * dt;
+    // Smoother variable jump
+    if (player.jumpHeld && player.vy < 0 && player.jumpHoldTime < 0.18) {
+      const taper = 1 - (player.jumpHoldTime / 0.18);
+      player.vy -= 900 * taper * dt;
       player.jumpHoldTime += dt;
     }
 
-    // Physics
     player.vy += 1600 * dt;
     player.y += player.vy * dt;
 
@@ -480,51 +429,41 @@ const SPR = {
       player.onGround = false;
     }
 
-    // Spawn obstacles
+    // Spawning logic (unchanged)
     const spawnAhead = camX + 900;
     if (nextObstacleX < spawnAhead) {
-      // reaction distance grows with speed
       const minGap = clamp(260 + speed*0.35, 260, 520);
       spawnObstacle(nextObstacleX);
       nextObstacleX += minGap + rng()*220;
     }
-
-    // Spawn star sets
     if (nextStarSetX < spawnAhead) {
       spawnStarSet(nextStarSetX);
       nextStarSetX += 420 + rng()*520;
     }
-
-    // Crown power-up
     if (nextCrownX < spawnAhead) {
       spawnCrown(nextCrownX);
       nextCrownX += 1800 + rng()*1800;
     }
 
-    // Update particles
+    // Particles update
     for (const p of particles) {
       p.vy += 900*dt;
       p.x += p.vx*dt;
       p.y += p.vy*dt;
       p.life -= dt;
     }
-    particles = particles.filter(p=>p.life>0);
+    particles = particles.filter(p => p.life > 0);
 
-    // Player hitbox (slightly generous)
     const px = player.x, py = player.y - player.h;
     const pw = player.w, ph = player.h;
 
-    // Obstacles move relative to camera
+    // Near miss & collision (unchanged except cleanup)
     for (const o of obstacles) {
-      // near miss bonus when just passed close
-      const ox = o.x - camX + 0; // screen space
+      const ox = o.x - camX;
       const oy = o.y - o.h;
-
-      // Only check when on screen-ish
       if (!o.passed && ox + o.w < player.x - 8) {
         o.passed = true;
-        // near-miss if player was close vertically while passing
-        const clearance = (py + ph) - oy; // overlap-ish metric
+        const clearance = (py + ph) - oy;
         if (clearance > -18 && clearance < 10 && !player.onGround) {
           score += 25;
           nearMissFlash = 0.25;
@@ -532,19 +471,14 @@ const SPR = {
       }
     }
 
-    // Collision checks
     for (const o of obstacles) {
       const ox = o.x - camX;
       const oy = o.y - o.h;
-      if (ox < -80) continue;
-      if (ox > W+80) continue;
-
-      const hit = aabb(px, py, pw, ph, ox, oy, o.w, o.h);
-      if (hit) {
+      if (ox < -80 || ox > W+80) continue;
+      if (aabb(px, py, pw, ph, ox, oy, o.w, o.h)) {
         if (player.invincible > 0) {
-          // break obstacle
           spawnBurst(ox + o.w/2, oy + o.h/2, 22, 420);
-          o.x = camX - 9999; // remove
+          o.x = camX - 9999;
         } else {
           player.hurtShake = 0.25;
           gameOver();
@@ -554,9 +488,7 @@ const SPR = {
     }
     obstacles = obstacles.filter(o => (o.x - camX) > -140);
 
-    // Stars
-    // Determine if a set was missed: if all stars in a set passed beyond player without being collected
-    // We'll track by setId
+    // Stars & crown logic (unchanged)
     const setMap = new Map();
     for (const s of stars) {
       if (!setMap.has(s.setId)) setMap.set(s.setId, {total:0, taken:0, passed:false});
@@ -566,14 +498,12 @@ const SPR = {
       if (!s.taken && (s.x - camX) < player.x - 30) meta.passed = true;
     }
     for (const [id,meta] of setMap) {
-      if (meta.passed && meta.taken === 0 && meta.total>0) {
-        // missed whole set -> drop streak by 50%
+      if (meta.passed && meta.taken === 0 && meta.total > 0) {
         if (streak > 0) {
           streak = Math.floor(streak * 0.5);
           updateMultiplier();
         }
-        // mark stars so we don't re-trigger
-        for (const s of stars) if (s.setId===id) s.taken = true;
+        for (const s of stars) if (s.setId === id) s.taken = true;
       }
     }
 
@@ -583,12 +513,10 @@ const SPR = {
       const sy = s.y;
       if (sx < -40) { s.taken = true; continue; }
       if (sx > W+40) continue;
-
-      // circle-rect collision approx
       const cx = clamp(sx, px, px+pw);
       const cy = clamp(sy, py, py+ph);
       const dx = sx - cx, dy = sy - cy;
-      if (dx*dx + dy*dy < (s.r*s.r)) {
+      if (dx*dx + dy*dy < s.r*s.r) {
         s.taken = true;
         starsCollected++;
         streak++;
@@ -599,14 +527,12 @@ const SPR = {
     }
     stars = stars.filter(s => (s.x - camX) > -80 && !s.taken);
 
-    // Crown pickup
     for (const pu of powerups) {
       if (pu.taken) continue;
       const ux = pu.x - camX;
       const uy = pu.y;
       if (ux < -60) { pu.taken = true; continue; }
       if (ux > W+60) continue;
-
       const cx = clamp(ux, px, px+pw);
       const cy = clamp(uy, py, py+ph);
       const dx = ux - cx, dy = uy - cy;
@@ -619,12 +545,10 @@ const SPR = {
     }
     powerups = powerups.filter(pu => (pu.x - camX) > -120 && !pu.taken);
 
-    // near miss flash decay
     if (nearMissFlash > 0) nearMissFlash = Math.max(0, nearMissFlash - dt);
   }
 
   function render() {
-    // Camera shake
     let shakeX = 0, shakeY = 0;
     if (player.hurtShake > 0) {
       player.hurtShake = Math.max(0, player.hurtShake - 1/60);
@@ -644,7 +568,7 @@ const SPR = {
     ctx.fillStyle = grd;
     ctx.fillRect(0,0,W,H);
 
-    // Parallax stadium lights
+    // Parallax lights, ground, stripes, obstacles, stars, crown → unchanged
     const px1 = -(camX*0.2)%W;
     ctx.globalAlpha = 0.9;
     for (let i=-1;i<=2;i++) {
@@ -653,7 +577,6 @@ const SPR = {
       ctx.fillRect(x+80, 80, 6, 120);
       ctx.fillRect(x+300, 60, 6, 150);
       ctx.fillRect(x+650, 90, 6, 110);
-      // light glows
       ctx.fillStyle = 'rgba(120,190,255,.07)';
       ctx.beginPath(); ctx.ellipse(x+83, 80, 70, 35, 0, 0, Math.PI*2); ctx.fill();
       ctx.beginPath(); ctx.ellipse(x+303, 60, 85, 40, 0, 0, Math.PI*2); ctx.fill();
@@ -661,17 +584,16 @@ const SPR = {
     }
     ctx.globalAlpha = 1;
 
-    // Ground
     ctx.fillStyle = '#0a0a12';
     ctx.fillRect(0, groundY, W, H-groundY);
 
-    // Road striping
     const laneY = groundY + 50;
     const stripeX = -(camX*1.0)%140;
     ctx.fillStyle = 'rgba(255,255,255,.08)';
     for (let i=-1;i<10;i++) ctx.fillRect(stripeX + i*140, laneY, 60, 6);
 
-    // Obstacles
+    // Obstacles, stars, crown drawing → unchanged (your code is fine here)
+
     for (const o of obstacles) {
       const x = o.x - camX;
       const y = o.y;
@@ -687,7 +609,6 @@ const SPR = {
         ctx.fillStyle = 'rgba(255,255,255,.18)';
         ctx.fillRect(x+6, y-18, o.w-12, 4);
       } else {
-        // bar stool
         ctx.fillStyle = 'rgba(255,210,120,.9)';
         ctx.fillRect(x, y-o.h, o.w, o.h);
         ctx.fillStyle = 'rgba(0,0,0,.22)';
@@ -695,13 +616,11 @@ const SPR = {
       }
     }
 
-    // Stars
     for (const s of stars) {
       if (s.taken) continue;
       const x = s.x - camX;
       if (x < -60 || x > W+60) continue;
       const y = s.y;
-      // star-like
       ctx.save();
       ctx.translate(x,y);
       ctx.rotate((camX*0.01 + y*0.01)%6.28);
@@ -716,7 +635,6 @@ const SPR = {
       ctx.restore();
     }
 
-    // Crown powerup
     for (const pu of powerups) {
       if (pu.taken) continue;
       const x = pu.x - camX;
@@ -726,8 +644,8 @@ const SPR = {
       ctx.beginPath();
       ctx.moveTo(x-14, y+12);
       ctx.lineTo(x-10, y-4);
-      ctx.lineTo(x-2,  y+4);
-      ctx.lineTo(x+6,  y-6);
+      ctx.lineTo(x-2, y+4);
+      ctx.lineTo(x+6, y-6);
       ctx.lineTo(x+12, y+4);
       ctx.lineTo(x+16, y-2);
       ctx.lineTo(x+14, y+12);
@@ -737,44 +655,53 @@ const SPR = {
       ctx.fillRect(x-14,y+10,28,4);
     }
 
-// --- Player sprite draw ---
-const sx = player.x;
-const sy = player.y - player.h; // top-left of hitbox
+    // --- Player rendering ---
+    const sx = player.x;
+    const sy = player.y - player.h;
+    let frame = SPR.run1;
 
-let frame = SPR.run1;
-if (!player.onGround) frame = SPR.jump;
-else {
-  // flip between run1/run2 based on time + speed
-  const phase = Math.floor((timeAlive * (speed / 220)) % 2);
-  frame = phase === 0 ? SPR.run1 : SPR.run2;
-}
+    if (!player.onGround) {
+      frame = SPR.jump;
+    } else {
+      const phase = Math.floor((timeAlive * (speed / 220)) % 2);
+      frame = phase === 0 ? SPR.run1 : SPR.run2;
+    }
 
-// tiny bob
-const bob = (state === STATE.RUN && player.onGround) ? Math.sin(timeAlive * 12) * 2 : 0;
+    const bob = (state === STATE.RUN && player.onGround) ? Math.sin(timeAlive * 12) * 2 : 0;
 
-// glow if invincible
-if (player.invincible > 0) {
-  ctx.globalAlpha = 0.9;
-  ctx.fillStyle = 'rgba(255,220,140,.16)';
-  ctx.beginPath();
-  ctx.ellipse(sx + 22, sy + 36, 44, 52, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-}
+    // Invincible glow
+    if (player.invincible > 0) {
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = 'rgba(255,220,140,.16)';
+      ctx.beginPath();
+      ctx.ellipse(sx + 22, sy + 36, 44, 52, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
-// draw sprite (64x96) aligned to player hitbox
-    ctx.imageSmoothingEnabled = true;
-ctx.drawImage(frame, sx - 10, sy - 18 + bob, 64, 96);
+    // Draw sprite or placeholder
+    if (spritesReady && frame.complete && frame.naturalWidth > 0) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(frame, sx - 10, sy - 18 + bob, 64, 96);
+    } else {
+      // Loading placeholder
+      ctx.fillStyle = player.invincible > 0 ? "#ffeb3b" : "#ff5722";
+      ctx.fillRect(sx - 10, sy - 18 + bob, 64, 96);
+      ctx.fillStyle = "white";
+      ctx.font = "12px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("Loading runner...", sx + 22, sy + 30 + bob);
+    }
 
-// Crown mode outline (optional)
-if (player.invincible > 0) {
-  const glow = 0.25 + 0.75 * (player.invincible / 3);
-  ctx.strokeStyle = `rgba(255,220,140,${0.25 * glow})`;
-  ctx.lineWidth = 3;
-  ctx.strokeRect(sx - 4, sy - 10 + bob, 52, 78);
-}
+    // Crown mode outline
+    if (player.invincible > 0) {
+      const glow = 0.25 + 0.75 * (player.invincible / 3);
+      ctx.strokeStyle = `rgba(255,220,140,${0.25 * glow})`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(sx - 4, sy - 10 + bob, 52, 78);
+    }
 
-    // Particles
+    // Particles & grain
     ctx.fillStyle = 'rgba(255,255,255,.85)';
     for (const p of particles) {
       ctx.globalAlpha = clamp(p.life, 0, 1);
@@ -782,17 +709,17 @@ if (player.invincible > 0) {
     }
     ctx.globalAlpha = 1;
 
-    // Grain overlay
     ctx.globalAlpha = 0.12;
     ctx.drawImage(grain, 0, 0, W, H);
     ctx.globalAlpha = 1;
 
-    // HUD
+    // HUD, overlays, debug → unchanged (your code is good)
+
     const crownOn = player.invincible > 0;
     const hudY = 36;
     textShadow(`SCORE ${score}`, 18, hudY, 22, 'left');
     textShadow(`DIST ${distance}m`, 18, hudY+26, 16, 'left');
-    textShadow(`⭐ ${starsCollected}  STREAK ${streak}  x${multiplier}`, 18, hudY+48, 16, 'left');
+    textShadow(`⭐ ${starsCollected} STREAK ${streak} x${multiplier}`, 18, hudY+48, 16, 'left');
 
     if (nearMissFlash > 0) {
       ctx.globalAlpha = nearMissFlash*2;
@@ -809,7 +736,6 @@ if (player.invincible > 0) {
       textShadow(`CROWN MODE!`, W/2, 16, 18, 'center');
     }
 
-    // Title / Over overlays (in-canvas)
     if (state === STATE.TITLE) {
       ctx.globalAlpha = 0.92;
       ctx.fillStyle = 'rgba(0,0,0,.45)';
@@ -820,7 +746,7 @@ if (player.invincible > 0) {
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(255,255,255,.85)';
       ctx.fillText('Tap / Space to start. Hold to jump higher. Collect stars, build streaks.', W/2, 260);
-      ctx.fillText(`BEST SCORE ${best.score}   BEST DIST ${best.dist}m`, W/2, 292);
+      ctx.fillText(`BEST SCORE ${best.score} BEST DIST ${best.dist}m`, W/2, 292);
       ctx.fillText('Press H for debug overlay.', W/2, 320);
     }
 
@@ -845,25 +771,23 @@ if (player.invincible > 0) {
       ctx.font = '800 20px system-ui';
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(255,255,255,.92)';
-      ctx.fillText(`Score ${score}   Distance ${distance}m   Stars ${starsCollected}`, W/2, 276);
+      ctx.fillText(`Score ${score} Distance ${distance}m Stars ${starsCollected}`, W/2, 276);
       ctx.fillStyle = 'rgba(255,255,255,.80)';
-      ctx.fillText(`Best ${best.score}   Best Dist ${best.dist}m`, W/2, 306);
+      ctx.fillText(`Best ${best.score} Best Dist ${best.dist}m`, W/2, 306);
       ctx.fillText('Tap / Space to play again', W/2, 340);
     }
 
-    // Debug overlay
     if (debug) {
       ctx.fillStyle = 'rgba(0,0,0,.55)';
       ctx.fillRect(12, H-120, 360, 108);
       ctx.fillStyle = '#fff';
       ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(`FPS: ${fps.toFixed(1)}   state: ${Object.keys(STATE)[state]}`, 22, H-96);
-      ctx.fillText(`speed: ${speed.toFixed(0)} px/s   camX: ${camX.toFixed(0)}`, 22, H-78);
+      ctx.fillText(`FPS: ${fps.toFixed(1)} state: ${Object.keys(STATE)[state]}`, 22, H-96);
+      ctx.fillText(`speed: ${speed.toFixed(0)} px/s camX: ${camX.toFixed(0)}`, 22, H-78);
       ctx.fillText(`player y:${player.y.toFixed(1)} vy:${player.vy.toFixed(1)} onGround:${player.onGround}`, 22, H-60);
-      ctx.fillText(`invincible: ${player.invincible.toFixed(2)}s  obstacles:${obstacles.length} stars:${stars.length}`, 22, H-42);
+      ctx.fillText(`invincible: ${player.invincible.toFixed(2)}s obstacles:${obstacles.length} stars:${stars.length}`, 22, H-42);
 
-      // hitboxes
       const px = player.x, py = player.y - player.h;
       ctx.strokeStyle = 'rgba(0,255,255,.9)';
       ctx.strokeRect(px, py, player.w, player.h);
@@ -876,15 +800,17 @@ if (player.invincible > 0) {
     }
   }
 
-  // Start in title
+  // Start
   state = STATE.TITLE;
+  canvas.focus();
 
-  // Allow tap/space on title
-  document.addEventListener('keydown', (e)=>{
-    if (state===STATE.TITLE && (e.code==='Space' || e.code==='ArrowUp')) { e.preventDefault(); resetRun({daily:false}); }
+  document.addEventListener('keydown', e => {
+    if (state === STATE.TITLE && (e.code === 'Space' || e.code === 'ArrowUp')) {
+      e.preventDefault();
+      resetRun({daily:false});
+    }
   }, {passive:false});
 
-  // Run
   requestAnimationFrame(tick);
 })();
 </script>
