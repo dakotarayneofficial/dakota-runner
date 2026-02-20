@@ -1,1 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hot Cowgirl Singer Runner</title>
+    <style>
+        body { margin: 0; background: #87CEEB; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; }
+        canvas { border: 2px solid #8B4513; background: #87CEEB; cursor: pointer; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 24px; text-shadow: 2px 2px 4px black; }
+    </style>
+</head>
+<body>
+    <canvas id="game" width="800" height="500"></canvas>
+    <div id="ui">
+        <div>Score: <span id="score">0</span></div>
+        <div>Distance: <span id="dist">0</span></div>
+    </div>
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const distEl = document.getElementById('dist');
 
+        // Game state
+        let gameState = { score: 0, distance: 0, gameOver: false };
+        let keys = {};
+        let camera = { x: 0 };
+
+        // Player
+        const player = {
+            x: 100, y: 300, width: 32, height: 56,
+            vx: 0, vy: 0, speed: 4, jumpPower: -14,
+            onGround: false, frame: 0, maxFrame: 4
+        };
+
+        // Arrays
+        let platforms = [{x: 0, y: 420, w: 3000, h: 80}]; // Ground
+        let obstacles = [];
+        let coins = [];
+
+        // Input
+        document.addEventListener('keydown', (e) => { keys[e.code] = true; });
+        document.addEventListener('keyup', (e) => { keys[e.code] = false; });
+        canvas.addEventListener('click', () => { if (gameState.gameOver) reset(); });
+
+        function reset() {
+            player.x = 100; player.y = 300; player.vx = 0; player.vy = 0;
+            camera.x = 0;
+            platforms = [{x: 0, y: 420, w: 3000, h: 80}];
+            obstacles = []; coins = [];
+            gameState.score = 0; gameState.distance = 0; gameState.gameOver = false;
+            generateLevel();
+        }
+
+        function generateLevel() {
+            const worldEnd = Math.max(...platforms.map(p => p.x + p.w), 3000);
+            if (player.x > worldEnd - 1000) {
+                // Add more ground
+                platforms[0].w += 2000;
+                // Platforms
+                for (let i = 0; i < 10; i++) {
+                    const px = worldEnd + Math.random() * 500 + 200;
+                    const py = 420 - 50 - Math.random() * 100;
+                    platforms.push({x: px, y: py, w: 100 + Math.random() * 100, h: 20});
+                }
+                // Obstacles
+                for (let i = 0; i < 8; i++) {
+                    const ox = worldEnd + Math.random() * 800 + 300;
+                    obstacles.push({x: ox, y: 360, w: 24, h: 60});
+                }
+                // Coins
+                for (let i = 0; i < 15; i++) {
+                    const cx = worldEnd + Math.random() * 1000 + 200;
+                    const cy = 300 + Math.random() * 100;
+                    coins.push({x: cx, y: cy, r: 8, collected: false});
+                }
+            }
+        }
+
+        function update() {
+            if (gameState.gameOver) return;
+
+            // Input
+            player.vx = 0;
+            if (keys['ArrowRight'] || keys['KeyD']) player.vx = player.speed;
+            if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -player.speed * 0.7;
+            if ((keys['ArrowUp'] || keys['Space']) && player.onGround) {
+                player.vy = player.jumpPower;
+                player.onGround = false;
+            }
+
+            // Physics
+            player.vy += 0.8; // Gravity
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Animation
+            if (Math.abs(player.vx) > 0 && player.onGround) {
+                player.frame = (player.frame + 0.25) % player.maxFrame;
+            } else {
+                player.frame = 0;
+            }
+
+            // Platform collisions
+            player.onGround = false;
+            for (let p of platforms) {
+                if (player.x < p.x + p.w &&
+                    player.x + player.width > p.x &&
+                    player.y + player.height > p.y &&
+                    player.y + player.height <= p.y + player.vy + 10) {
+                    player.y = p.y - player.height;
+                    player.vy = 0;
+                    player.onGround = true;
+                }
+            }
+
+            // Obstacle collisions
+            for (let o of obstacles) {
+                if (player.x < o.x + o.w &&
+                    player.x + player.width > o.x &&
+                    player.y < o.y + o.h &&
+                    player.y + player.height > o.y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // Coin collection
+            for (let c of coins) {
+                if (!c.collected &&
+                    player.x < c.x + c.r * 2 &&
+                    player.x + player.width > c.x - c.r * 2 &&
+                    player.y < c.y + c.r * 2 &&
+                    player.y + player.height > c.y - c.r * 2) {
+                    c.collected = true;
+                    gameState.score += 100;
+                }
+            }
+
+            // Bounds
+            if (player.y > canvas.height) gameOver();
+
+            // Camera
+            camera.x = Math.max(0, player.x - canvas.width / 2);
+
+            // Score
+            gameState.distance = Math.floor(player.x / 10);
+            gameState.score += 1; // Distance points
+            generateLevel();
+
+            updateUI();
+        }
+
+        function gameOver() {
+            gameState.gameOver = true;
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = '48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2);
+            ctx.font = '24px Arial';
+            ctx.fillText('Click to Restart', canvas.width / 2, canvas.height / 2 + 60);
+            updateUI();
+        }
+
+        function updateUI() {
+            scoreEl.textContent = gameState.score;
+            distEl.textContent = gameState.distance;
+        }
+
+        function drawCowgirl(px, py, frame) {
+            ctx.save();
+            ctx.translate(px + 16, py + 28);
+
+            // Jump squash/stretch
+            const squash = player.onGround ? 1 : (player.vy > 0 ? 0.85 : 1.1);
+            ctx.scale(squash, 1 / squash);
+
+            ctx.translate(-16, -28);
+
+            // Hat
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(4, -52, 24, 12); // Brim
+            ctx.beginPath();
+            ctx.roundRect(8, -48, 16, 16, 4);
+            ctx.fill(); // Crown
+
+            // Brunette hair (long, flowing)
+            const hairColor = '#6D4C41';
+            ctx.fillStyle = hairColor;
+            ctx.fillRect(6, -40, 20, 36); // Main hair
+            ctx.fillRect(22, -20, 6, 20); // Ponytail
+            // Bangs
+            ctx.beginPath();
+            ctx.moveTo(6, -40);
+            ctx.quadraticCurveTo(16, -52, 26, -40);
+            ctx.lineTo(26, -28);
+            ctx.lineTo(6, -28);
+            ctx.fill();
+
+            // Face
+            ctx.fillStyle = '#FDBCB4';
+            ctx.roundRect(8, -28, 16, 22, 8);
+            ctx.fill();
+            // Eyes
+            ctx.fillStyle = 'black';
+            ctx.fillRect(11, -20, 2, 2);
+            ctx.fillRect(19, -20, 2, 2);
+            // Smile (singing mouth)
+            ctx.strokeStyle = '#FF69B4';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(16, -12, 3, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+
+            // Plaid shirt (hot pink/white for cartoon pop)
+            ctx.fillStyle = '#FF69B4';
+            ctx.fillRect(6, -8, 20, 20);
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(6, -8, 20, 20);
+
+            // Arms (swing with run)
+            const armSwing = Math.sin(frame * Math.PI * 2) * 3;
+            ctx.fillStyle = '#FDBCB4';
+            ctx.fillRect(2 + armSwing, 2, 6, 18); // Left arm
+            ctx.fillRect(24 - armSwing, 2, 6, 18); // Right arm
+            // Hands
+            ctx.fillRect(1 + armSwing, 18, 4, 4);
+            ctx.fillRect(27 - armSwing, 18, 4, 4);
+
+            // Microphone (singer!)
+            ctx.fillStyle = '#C0C0C0';
+            ctx.fillRect(28 - armSwing, 15, 3, 12);
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(29 - armSwing, 25, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Jeans
+            ctx.fillStyle = '#4682B4';
+            ctx.fillRect(8, 12, 8, 32); // Left leg
+            ctx.fillRect(16, 12, 8, 32); // Right leg
+
+            // Boots
+            ctx.fillStyle = '#333';
+            ctx.fillRect(6, 40, 12, 8);
+            ctx.fillRect(14, 40, 12, 8);
+
+            ctx.restore();
+        }
+
+        function draw() {
+            // Sky gradient
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#87CEEB');
+            grad.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Clouds (parallax)
+            ctx.fillStyle = 'white';
+            for (let i = 0; i < 5; i++) {
+                const cx = (i * 400 - camera.x * 0.2) % 2000;
+                ctx.beginPath();
+                ctx.arc(cx, 100 + Math.sin(i) * 20, 30, 0, Math.PI * 2);
+                ctx.arc(cx + 25, 100 + Math.sin(i) * 20, 40, 0, Math.PI * 2);
+                ctx.arc(cx + 50, 100 + Math.sin(i) * 20, 30, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Platforms (brown)
+            ctx.fillStyle = '#D2691E';
+            for (let p of platforms) {
+                ctx.fillRect(p.x - camera.x, p.y, p.w, p.h);
+            }
+
+            // Obstacles (red cacti)
+            ctx.fillStyle = '#DC143C';
+            for (let o of obstacles) {
+                ctx.fillRect(o.x - camera.x, o.y, o.w, o.h);
+            }
+
+            // Coins
+            ctx.fillStyle = 'gold';
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            for (let c of coins) {
+                if (!c.collected) {
+                    const cx = c.x - camera.x;
+                    ctx.beginPath();
+                    ctx.arc(cx, c.y, c.r, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Shine
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc(cx - 3, c.y - 3, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'gold';
+                }
+            }
+
+            // Player
+            drawCowgirl(player.x, player.y, player.frame);
+
+            if (gameState.gameOver) return;
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // Start
+        reset();
+        loop();
+    </script>
+</body>
+</html>
