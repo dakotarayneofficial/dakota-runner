@@ -3,321 +3,311 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hot Cowgirl Singer Runner</title>
+    <title>Hot Cowgirl Singer Dash</title>
     <style>
-        body { margin: 0; background: #87CEEB; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; }
-        canvas { border: 2px solid #8B4513; background: #87CEEB; cursor: pointer; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 24px; text-shadow: 2px 2px 4px black; }
+        body { margin: 0; background: #1e3a5f; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; overflow: hidden; }
+        canvas { border: 4px solid #8B4513; box-shadow: 0 0 30px rgba(0,0,0,0.6); }
+        #ui { position: absolute; top: 15px; left: 15px; color: white; font-size: 22px; text-shadow: 2px 2px 6px black; pointer-events: none; }
+        #startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; }
+        h1 { font-size: 52px; margin: 10px; text-shadow: 3px 3px 8px #ff1493; }
+        p { font-size: 24px; margin: 8px; }
     </style>
 </head>
 <body>
     <canvas id="game" width="800" height="500"></canvas>
     <div id="ui">
         <div>Score: <span id="score">0</span></div>
-        <div>Distance: <span id="dist">0</span></div>
+        <div>Distance: <span id="dist">0</span>m</div>
     </div>
+
+    <div id="startScreen">
+        <h1>🤠 HOT COWGIRL DASH 🎤</h1>
+        <p>Brunette Singer Edition</p>
+        <p>← → or A D : Run<br>↑ or SPACE : Jump<br><br>Click or SPACE to Start</p>
+    </div>
+
     <script>
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
         const scoreEl = document.getElementById('score');
         const distEl = document.getElementById('dist');
+        const startScreen = document.getElementById('startScreen');
 
-        // Game state
-        let gameState = { score: 0, distance: 0, gameOver: false };
+        let gameState = { mode: 'start', score: 0, distance: 0 };
         let keys = {};
         let camera = { x: 0 };
+        let lastSpawnX = 800;
 
-        // Player
         const player = {
-            x: 100, y: 300, width: 32, height: 56,
-            vx: 0, vy: 0, speed: 4, jumpPower: -14,
-            onGround: false, frame: 0, maxFrame: 4
+            x: 120, y: 300, width: 38, height: 62,
+            vx: 0, vy: 0, speed: 5.5, accel: 1.2, friction: 0.82,
+            jumpPower: -15.5, onGround: false, facingRight: true,
+            frame: 0
         };
 
-        // Arrays
-        let platforms = [{x: 0, y: 420, w: 3000, h: 80}]; // Ground
+        let platforms = [{x: 0, y: 420, w: 2500, h: 80}];
         let obstacles = [];
         let coins = [];
+        let tumbleweeds = [];
 
-        // Input
-        document.addEventListener('keydown', (e) => { keys[e.code] = true; });
-        document.addEventListener('keyup', (e) => { keys[e.code] = false; });
-        canvas.addEventListener('click', () => { if (gameState.gameOver) reset(); });
+        document.addEventListener('keydown', e => { 
+            keys[e.code] = true;
+            if ((e.code === 'Space' || e.code === 'ArrowUp') && gameState.mode === 'start') startGame();
+            if (e.code === 'Space' && gameState.mode === 'gameover') reset();
+        });
+        document.addEventListener('keyup', e => keys[e.code] = false);
+        canvas.addEventListener('click', () => {
+            if (gameState.mode === 'start') startGame();
+            if (gameState.mode === 'gameover') reset();
+        });
 
-        function reset() {
-            player.x = 100; player.y = 300; player.vx = 0; player.vy = 0;
-            camera.x = 0;
-            platforms = [{x: 0, y: 420, w: 3000, h: 80}];
-            obstacles = []; coins = [];
-            gameState.score = 0; gameState.distance = 0; gameState.gameOver = false;
-            generateLevel();
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameState.mode = 'playing';
+            reset();
         }
 
-        function generateLevel() {
-            const worldEnd = Math.max(...platforms.map(p => p.x + p.w), 3000);
-            if (player.x > worldEnd - 1000) {
-                // Add more ground
-                platforms[0].w += 2000;
-                // Platforms
-                for (let i = 0; i < 10; i++) {
-                    const px = worldEnd + Math.random() * 500 + 200;
-                    const py = 420 - 50 - Math.random() * 100;
-                    platforms.push({x: px, y: py, w: 100 + Math.random() * 100, h: 20});
-                }
-                // Obstacles
-                for (let i = 0; i < 8; i++) {
-                    const ox = worldEnd + Math.random() * 800 + 300;
-                    obstacles.push({x: ox, y: 360, w: 24, h: 60});
-                }
-                // Coins
-                for (let i = 0; i < 15; i++) {
-                    const cx = worldEnd + Math.random() * 1000 + 200;
-                    const cy = 300 + Math.random() * 100;
-                    coins.push({x: cx, y: cy, r: 8, collected: false});
-                }
+        function reset() {
+            player.x = 120; player.y = 300; player.vx = player.vy = 0;
+            camera.x = 0; lastSpawnX = 800;
+            platforms = [{x: 0, y: 420, w: 2500, h: 80}];
+            obstacles = []; coins = []; tumbleweeds = [];
+            gameState.score = 0; gameState.distance = 0;
+            gameState.mode = 'playing';
+            spawnChunk(600);
+        }
+
+        function spawnChunk(startX) {
+            for (let i = 0; i < 6; i++) {
+                const px = startX + i * 180 + Math.random() * 80;
+                const py = 280 + Math.random() * 110;
+                platforms.push({x: px, y: py, w: 110 + Math.random() * 90, h: 22});
             }
+            for (let i = 0; i < 7; i++) {
+                const ox = startX + 100 + Math.random() * 900;
+                obstacles.push({x: ox, y: 360, w: 28, h: 60});
+            }
+            for (let i = 0; i < 18; i++) {
+                const cx = startX + Math.random() * 1100;
+                const cy = 180 + Math.random() * 160;
+                coins.push({x: cx, y: cy, r: 10, collected: false});
+            }
+            for (let i = 0; i < 4; i++) {
+                tumbleweeds.push({x: startX + 300 + Math.random() * 700, y: 380, vx: 1.8 + Math.random() * 1.2, size: 18 + Math.random() * 8});
+            }
+            lastSpawnX = startX + 1100;
+        }
+
+        function cleanup() {
+            const threshold = camera.x - 300;
+            platforms = platforms.filter(p => p.x + p.w > threshold);
+            obstacles = obstacles.filter(o => o.x + o.w > threshold);
+            coins = coins.filter(c => !c.collected && c.x > threshold);
+            tumbleweeds = tumbleweeds.filter(t => t.x > threshold);
         }
 
         function update() {
-            if (gameState.gameOver) return;
+            if (gameState.mode !== 'playing') return;
 
-            // Input
-            player.vx = 0;
-            if (keys['ArrowRight'] || keys['KeyD']) player.vx = player.speed;
-            if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -player.speed * 0.7;
-            if ((keys['ArrowUp'] || keys['Space']) && player.onGround) {
+            // Controls + smooth acceleration
+            let targetVx = 0;
+            if (keys['ArrowRight'] || keys['KeyD']) targetVx = player.speed;
+            if (keys['ArrowLeft'] || keys['KeyA']) targetVx = -player.speed * 0.75;
+            player.vx += (targetVx - player.vx) * player.accel;
+            if (player.onGround) player.vx *= player.friction;
+
+            if ((keys['Space'] || keys['ArrowUp']) && player.onGround) {
                 player.vy = player.jumpPower;
                 player.onGround = false;
             }
 
-            // Physics
-            player.vy += 0.8; // Gravity
+            player.vy += 0.85; // gravity
+
+            // X movement + collision
             player.x += player.vx;
+            handleCollisions(true);
+
+            // Y movement + collision
             player.y += player.vy;
+            handleCollisions(false);
 
-            // Animation
-            if (Math.abs(player.vx) > 0 && player.onGround) {
-                player.frame = (player.frame + 0.25) % player.maxFrame;
-            } else {
-                player.frame = 0;
-            }
-
-            // Platform collisions
             player.onGround = false;
             for (let p of platforms) {
-                if (player.x < p.x + p.w &&
-                    player.x + player.width > p.x &&
-                    player.y + player.height > p.y &&
-                    player.y + player.height <= p.y + player.vy + 10) {
+                if (player.x < p.x + p.w && player.x + player.width > p.x &&
+                    player.y + player.height > p.y && player.y + player.height < p.y + 18) {
                     player.y = p.y - player.height;
                     player.vy = 0;
                     player.onGround = true;
                 }
             }
 
-            // Obstacle collisions
+            // Animation
+            if (Math.abs(player.vx) > 1 && player.onGround) player.frame = (player.frame + 0.28) % 6;
+            else player.frame = 0;
+            player.facingRight = player.vx >= 0;
+
+            camera.x = Math.max(0, player.x - 220);
+
+            if (camera.x + 1400 > lastSpawnX) spawnChunk(lastSpawnX);
+            cleanup();
+
+            // Collisions
             for (let o of obstacles) {
-                if (player.x < o.x + o.w &&
-                    player.x + player.width > o.x &&
-                    player.y < o.y + o.h &&
-                    player.y + player.height > o.y) {
-                    gameOver();
-                    return;
-                }
+                if (player.x < o.x + o.w && player.x + player.width > o.x &&
+                    player.y < o.y + o.h && player.y + player.height > o.y) die();
+            }
+            for (let t of tumbleweeds) {
+                if (player.x < t.x + t.size && player.x + player.width > t.x &&
+                    player.y < t.y + t.size && player.y + player.height > t.y - 10) die();
             }
 
-            // Coin collection
+            // Coins
             for (let c of coins) {
-                if (!c.collected &&
-                    player.x < c.x + c.r * 2 &&
-                    player.x + player.width > c.x - c.r * 2 &&
-                    player.y < c.y + c.r * 2 &&
-                    player.y + player.height > c.y - c.r * 2) {
-                    c.collected = true;
-                    gameState.score += 100;
+                if (!c.collected) {
+                    const dx = player.x + player.width/2 - c.x;
+                    const dy = player.y + player.height/2 - c.y;
+                    if (dx*dx + dy*dy < 900) {
+                        c.collected = true;
+                        gameState.score += 150;
+                    }
                 }
             }
 
-            // Bounds
-            if (player.y > canvas.height) gameOver();
+            if (player.y > 620) die();
 
-            // Camera
-            camera.x = Math.max(0, player.x - canvas.width / 2);
+            gameState.distance = Math.floor(Math.max(0, player.x - 100) / 8);
+            gameState.score = Math.floor(gameState.distance * 2) + gameState.score; // keep coin bonus
 
-            // Score
-            gameState.distance = Math.floor(player.x / 10);
-            gameState.score += 1; // Distance points
-            generateLevel();
-
-            updateUI();
-        }
-
-        function gameOver() {
-            gameState.gameOver = true;
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'white';
-            ctx.font = '48px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2);
-            ctx.font = '24px Arial';
-            ctx.fillText('Click to Restart', canvas.width / 2, canvas.height / 2 + 60);
-            updateUI();
-        }
-
-        function updateUI() {
             scoreEl.textContent = gameState.score;
             distEl.textContent = gameState.distance;
         }
 
-        function drawCowgirl(px, py, frame) {
+        function handleCollisions(isHorizontal) {
+            for (let p of platforms) {
+                if (!(player.x < p.x + p.w && player.x + player.width > p.x &&
+                      player.y < p.y + p.h && player.y + player.height > p.y)) continue;
+                if (isHorizontal) {
+                    if (player.vx > 0) player.x = p.x - player.width;
+                    else if (player.vx < 0) player.x = p.x + p.w;
+                    player.vx = 0;
+                } else {
+                    if (player.vy > 0) {
+                        player.y = p.y - player.height;
+                        player.vy = 0;
+                        player.onGround = true;
+                    } else if (player.vy < 0) {
+                        player.y = p.y + p.h;
+                        player.vy = 0;
+                    }
+                }
+            }
+        }
+
+        function die() {
+            gameState.mode = 'gameover';
+        }
+
+        function drawBackground() {
+            const grad = ctx.createLinearGradient(0, 0, 0, 500);
+            grad.addColorStop(0, '#7EC0EE'); grad.addColorStop(1, '#E0F0FF');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#5a8c4d';
+            for (let i = -1; i < 4; i++) {
+                const bx = (i * 350 - camera.x * 0.15) % 1400;
+                ctx.beginPath(); ctx.moveTo(bx, 380);
+                ctx.quadraticCurveTo(bx+120, 260, bx+280, 380); ctx.fill();
+            }
+        }
+
+        function drawCowgirl() {
             ctx.save();
-            ctx.translate(px + 16, py + 28);
+            const px = player.x - camera.x;
+            const py = player.y;
+            ctx.translate(px + 19, py + 31);
+            if (!player.facingRight) ctx.scale(-1, 1);
 
-            // Jump squash/stretch
-            const squash = player.onGround ? 1 : (player.vy > 0 ? 0.85 : 1.1);
-            ctx.scale(squash, 1 / squash);
+            const runCycle = player.onGround ? Math.sin(player.frame * Math.PI * 1.6) * 12 : 0;
 
-            ctx.translate(-16, -28);
+            // Hat & Hair
+            ctx.fillStyle = '#3d2b1f'; ctx.fillRect(-19, -48, 38, 14);
+            ctx.fillStyle = '#5c4033'; ctx.fillRect(-13, -55, 26, 18);
+            ctx.fillStyle = '#4a2f25'; ctx.fillRect(-18, -38, 26, 42);
+            ctx.fillRect(8, -32 + runCycle*0.3, 11, 28); // ponytail bounce
 
-            // Hat
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(4, -52, 24, 12); // Brim
-            ctx.beginPath();
-            ctx.roundRect(8, -48, 16, 16, 4);
-            ctx.fill(); // Crown
+            // Face + body (hot curves)
+            ctx.fillStyle = '#f8d0b8'; ctx.fillRect(-12, -28, 24, 26);
+            ctx.fillStyle = '#ff99cc'; ctx.fillRect(-16, -8, 32, 18); // bust
+            ctx.fillStyle = '#ff3366'; ctx.fillRect(-16, -6, 32, 22); // tight shirt
 
-            // Brunette hair (long, flowing)
-            const hairColor = '#6D4C41';
-            ctx.fillStyle = hairColor;
-            ctx.fillRect(6, -40, 20, 36); // Main hair
-            ctx.fillRect(22, -20, 6, 20); // Ponytail
-            // Bangs
-            ctx.beginPath();
-            ctx.moveTo(6, -40);
-            ctx.quadraticCurveTo(16, -52, 26, -40);
-            ctx.lineTo(26, -28);
-            ctx.lineTo(6, -28);
-            ctx.fill();
+            // Short denim shorts
+            ctx.fillStyle = '#2b5a8c'; ctx.fillRect(-15, 14, 30, 18);
 
-            // Face
-            ctx.fillStyle = '#FDBCB4';
-            ctx.roundRect(8, -28, 16, 22, 8);
-            ctx.fill();
-            // Eyes
-            ctx.fillStyle = 'black';
-            ctx.fillRect(11, -20, 2, 2);
-            ctx.fillRect(19, -20, 2, 2);
-            // Smile (singing mouth)
-            ctx.strokeStyle = '#FF69B4';
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.arc(16, -12, 3, 0.2, Math.PI - 0.2);
-            ctx.stroke();
+            // Arms + mic
+            const armSwing = player.onGround ? Math.sin(player.frame * Math.PI * 2) * 7 : -8;
+            ctx.fillStyle = '#f8d0b8';
+            ctx.fillRect(-19, 2, 8, 22);
+            ctx.fillRect(11, 2 + armSwing*0.6, 8, 20);
+            ctx.fillStyle = '#aaaaaa'; ctx.fillRect(18, 12 + armSwing*0.6, 6, 18);
+            ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(21, 28 + armSwing*0.6, 3.5, 0, Math.PI*2); ctx.fill();
 
-            // Plaid shirt (hot pink/white for cartoon pop)
-            ctx.fillStyle = '#FF69B4';
-            ctx.fillRect(6, -8, 20, 20);
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(6, -8, 20, 20);
-
-            // Arms (swing with run)
-            const armSwing = Math.sin(frame * Math.PI * 2) * 3;
-            ctx.fillStyle = '#FDBCB4';
-            ctx.fillRect(2 + armSwing, 2, 6, 18); // Left arm
-            ctx.fillRect(24 - armSwing, 2, 6, 18); // Right arm
-            // Hands
-            ctx.fillRect(1 + armSwing, 18, 4, 4);
-            ctx.fillRect(27 - armSwing, 18, 4, 4);
-
-            // Microphone (singer!)
-            ctx.fillStyle = '#C0C0C0';
-            ctx.fillRect(28 - armSwing, 15, 3, 12);
-            ctx.fillStyle = 'black';
-            ctx.beginPath();
-            ctx.arc(29 - armSwing, 25, 2, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Jeans
-            ctx.fillStyle = '#4682B4';
-            ctx.fillRect(8, 12, 8, 32); // Left leg
-            ctx.fillRect(16, 12, 8, 32); // Right leg
-
-            // Boots
-            ctx.fillStyle = '#333';
-            ctx.fillRect(6, 40, 12, 8);
-            ctx.fillRect(14, 40, 12, 8);
+            // Legs + boots
+            ctx.fillStyle = '#2b5a8c';
+            ctx.fillRect(-14, 30, 11, 26);
+            ctx.fillRect(3, 30, 11, 26);
+            ctx.fillStyle = '#222';
+            ctx.fillRect(-17, 52, 14, 10);
+            ctx.fillRect(1, 52, 14, 10);
 
             ctx.restore();
         }
 
         function draw() {
-            // Sky gradient
-            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            grad.addColorStop(0, '#87CEEB');
-            grad.addColorStop(1, '#E0F6FF');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
 
-            // Clouds (parallax)
-            ctx.fillStyle = 'white';
-            for (let i = 0; i < 5; i++) {
-                const cx = (i * 400 - camera.x * 0.2) % 2000;
-                ctx.beginPath();
-                ctx.arc(cx, 100 + Math.sin(i) * 20, 30, 0, Math.PI * 2);
-                ctx.arc(cx + 25, 100 + Math.sin(i) * 20, 40, 0, Math.PI * 2);
-                ctx.arc(cx + 50, 100 + Math.sin(i) * 20, 30, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            ctx.fillStyle = '#c17f4e';
+            for (let p of platforms) ctx.fillRect(p.x - camera.x, p.y, p.w, p.h);
 
-            // Platforms (brown)
-            ctx.fillStyle = '#D2691E';
-            for (let p of platforms) {
-                ctx.fillRect(p.x - camera.x, p.y, p.w, p.h);
-            }
-
-            // Obstacles (red cacti)
-            ctx.fillStyle = '#DC143C';
+            ctx.fillStyle = '#1e8c2f';
             for (let o of obstacles) {
                 ctx.fillRect(o.x - camera.x, o.y, o.w, o.h);
             }
 
-            // Coins
-            ctx.fillStyle = 'gold';
-            ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth = 2;
+            ctx.fillStyle = '#ffcc00';
             for (let c of coins) {
                 if (!c.collected) {
                     const cx = c.x - camera.x;
-                    ctx.beginPath();
-                    ctx.arc(cx, c.y, c.r, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                    // Shine
-                    ctx.fillStyle = 'white';
-                    ctx.beginPath();
-                    ctx.arc(cx - 3, c.y - 3, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = 'gold';
+                    ctx.beginPath(); ctx.arc(cx, c.y, c.r, 0, Math.PI*2); ctx.fill();
                 }
             }
 
-            // Player
-            drawCowgirl(player.x, player.y, player.frame);
+            ctx.strokeStyle = '#8B5A2B'; ctx.lineWidth = 3;
+            for (let t of tumbleweeds) {
+                const tx = t.x - camera.x;
+                ctx.beginPath(); ctx.arc(tx, t.y + 8, t.size, 0, Math.PI*2); ctx.stroke();
+            }
 
-            if (gameState.gameOver) return;
+            drawCowgirl();
+
+            if (gameState.mode === 'gameover') {
+                ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ff3366'; ctx.font = 'bold 58px Arial'; ctx.textAlign = 'center';
+                ctx.fillText('YA BIT THE DUST!', canvas.width/2, 200);
+                ctx.fillStyle = 'white'; ctx.font = '28px Arial';
+                ctx.fillText(`Final Score: ${gameState.score}`, canvas.width/2, 270);
+                ctx.fillText('Click or SPACE to Try Again', canvas.width/2, 340);
+            }
         }
 
         function loop() {
             update();
+            if (gameState.mode === 'playing') {
+                for (let t of tumbleweeds) t.x += t.vx;
+            }
             draw();
             requestAnimationFrame(loop);
         }
 
-        // Start
-        reset();
         loop();
     </script>
 </body>
