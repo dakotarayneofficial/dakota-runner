@@ -52,6 +52,92 @@
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
+  // --- Simple inline SVG sprites (no external assets) ---
+function svgToImg(svg) {
+  const img = new Image();
+  // encode safely
+  const encoded = encodeURIComponent(svg)
+    .replace(/'/g, "%27")
+    .replace(/"/g, "%22");
+  img.src = `data:image/svg+xml;charset=utf-8,${encoded}`;
+  return img;
+}
+
+// "Cartoon Dakota" mini sprites: run1, run2, jump
+const SPR = {
+  run1: svgToImg(`
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
+  <rect width="64" height="96" fill="none"/>
+  <!-- hair -->
+  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#3b2a24"/>
+  <path d="M48 28c10 2 14 10 10 18-2 4-7 6-12 2" fill="#3b2a24"/>
+  <!-- face -->
+  <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
+  <!-- eyes/liner -->
+  <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+  <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+  <path d="M32 19c2-2 5-3 8-3" stroke="#111" stroke-width="1.5" fill="none" opacity=".6"/>
+  <!-- jacket -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v22H24V40z" fill="#ffffff" opacity=".92"/>
+  <path d="M24 44h28" stroke="#000" opacity=".15"/>
+  <!-- belt -->
+  <rect x="24" y="60" width="28" height="6" fill="#000" opacity=".18"/>
+  <!-- legs -->
+  <path d="M30 62v18c0 4-2 6-4 6h-2" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <path d="M42 62v16c0 6 4 10 10 10" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <!-- boots -->
+  <path d="M18 86h14v6H18z" fill="#fff" opacity=".75"/>
+  <path d="M42 86h18v6H42z" fill="#fff" opacity=".75"/>
+</svg>`),
+
+  run2: svgToImg(`
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
+  <rect width="64" height="96" fill="none"/>
+  <!-- hair -->
+  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#3b2a24"/>
+  <path d="M46 30c10 3 13 12 8 19-3 4-9 5-13 0" fill="#3b2a24"/>
+  <!-- face -->
+  <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
+  <!-- eyes/liner -->
+  <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+  <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+  <path d="M32 19c2-2 5-3 8-3" stroke="#111" stroke-width="1.5" fill="none" opacity=".6"/>
+  <!-- jacket -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v22H24V40z" fill="#ffffff" opacity=".92"/>
+  <path d="M24 44h28" stroke="#000" opacity=".15"/>
+  <!-- belt -->
+  <rect x="24" y="60" width="28" height="6" fill="#000" opacity=".18"/>
+  <!-- legs (swap stride) -->
+  <path d="M30 62v16c0 6 4 10 10 10" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <path d="M42 62v18c0 4-2 6-4 6h-2" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <!-- boots -->
+  <path d="M28 86h18v6H28z" fill="#fff" opacity=".75"/>
+  <path d="M42 86h14v6H42z" fill="#fff" opacity=".75"/>
+</svg>`),
+
+  jump: svgToImg(`
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
+  <rect width="64" height="96" fill="none"/>
+  <!-- hair -->
+  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#3b2a24"/>
+  <path d="M50 28c10 2 14 10 10 18-2 4-7 6-12 2" fill="#3b2a24"/>
+  <!-- face -->
+  <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
+  <!-- eyes/liner -->
+  <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+  <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+  <!-- jacket -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v20H24V40z" fill="#ffffff" opacity=".92"/>
+  <rect x="24" y="58" width="28" height="6" fill="#000" opacity=".18"/>
+  <!-- legs tucked -->
+  <path d="M30 62c0 10 8 10 10 16" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <path d="M42 62c0 10-6 10-8 16" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <!-- boots -->
+  <path d="M26 86h16v6H26z" fill="#fff" opacity=".75"/>
+  <path d="M38 86h18v6H38z" fill="#fff" opacity=".75"/>
+</svg>`)
+};
+
   // ---------- UI buttons ----------
   const btnPlay = document.getElementById('btnPlay');
   const btnRestart = document.getElementById('btnRestart');
@@ -637,52 +723,41 @@
       ctx.fillRect(x-14,y+10,28,4);
     }
 
-    // Player (Cartoon Dakota)
-    const pX = player.x;
-    const pY = player.y;
-    const bob = (state===STATE.RUN) ? Math.sin(timeAlive*10)*2 : 0;
+// --- Player sprite draw ---
+const sx = player.x;
+const sy = player.y - player.h; // top-left of hitbox
 
-    // Glow if invincible
-    if (player.invincible > 0) {
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = 'rgba(255,220,140,.15)';
-      ctx.beginPath();
-      ctx.ellipse(pX+22, pY-36, 42, 48, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
+let frame = SPR.run1;
+if (!player.onGround) frame = SPR.jump;
+else {
+  // flip between run1/run2 based on time + speed
+  const phase = Math.floor((timeAlive * (speed / 220)) % 2);
+  frame = phase === 0 ? SPR.run1 : SPR.run2;
+}
 
-    // Body
-    ctx.fillStyle = 'rgba(255,255,255,.92)';
-    ctx.fillRect(pX+10, pY-58+bob, 26, 34); // torso
-    // Head
-    ctx.beginPath();
-    ctx.ellipse(pX+23, pY-70+bob, 14, 14, 0, 0, Math.PI*2);
-    ctx.fill();
-    // Hair ponytail (Dakota vibe)
-    ctx.fillStyle = 'rgba(255,255,255,.65)';
-    ctx.beginPath();
-    ctx.ellipse(pX+35, pY-72+bob, 10, 6, 0, 0, Math.PI*2);
-    ctx.fill();
-    // Legs (simple run cycle)
-    const t = timeAlive*14;
-    const legA = Math.sin(t)*8;
-    const legB = Math.sin(t+Math.PI)*8;
-    ctx.fillStyle = 'rgba(255,255,255,.85)';
-    ctx.fillRect(pX+14, pY-24, 10, 24 + legA*0.2);
-    ctx.fillRect(pX+26, pY-24, 10, 24 + legB*0.2);
-    // Boots
-    ctx.fillStyle = 'rgba(255,255,255,.75)';
-    ctx.fillRect(pX+12, pY-6, 14, 6);
-    ctx.fillRect(pX+24, pY-6, 14, 6);
+// tiny bob
+const bob = (state === STATE.RUN && player.onGround) ? Math.sin(timeAlive * 12) * 2 : 0;
 
-    // Crown mode trail particles (cheap)
-    if (player.invincible > 0) {
-      const glow = 0.25 + 0.75*(player.invincible/3);
-      ctx.strokeStyle = `rgba(255,220,140,${0.25*glow})`;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(pX+7, pY-78+bob, 34, 70);
-    }
+// glow if invincible
+if (player.invincible > 0) {
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = 'rgba(255,220,140,.16)';
+  ctx.beginPath();
+  ctx.ellipse(sx + 22, sy + 36, 44, 52, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+// draw sprite (64x96) aligned to player hitbox
+ctx.drawImage(frame, sx - 10, sy - 18 + bob, 64, 96);
+
+// Crown mode outline (optional)
+if (player.invincible > 0) {
+  const glow = 0.25 + 0.75 * (player.invincible / 3);
+  ctx.strokeStyle = `rgba(255,220,140,${0.25 * glow})`;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(sx - 4, sy - 10 + bob, 52, 78);
+}
 
     // Particles
     ctx.fillStyle = 'rgba(255,255,255,.85)';
