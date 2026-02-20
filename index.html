@@ -69,73 +69,87 @@ const SPR = {
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
   <rect width="64" height="96" fill="none"/>
   <!-- hair -->
-  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#3b2a24"/>
-  <path d="M48 28c10 2 14 10 10 18-2 4-7 6-12 2" fill="#3b2a24"/>
+  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#2f201b"/>
+  <path d="M48 28c10 2 14 10 10 18-2 4-7 6-12 2" fill="#2f201b"/>
   <!-- face -->
   <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
   <!-- eyes/liner -->
   <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
   <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-  <path d="M32 19c2-2 5-3 8-3" stroke="#111" stroke-width="1.5" fill="none" opacity=".6"/>
-  <!-- jacket -->
-  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v22H24V40z" fill="#ffffff" opacity=".92"/>
-  <path d="M24 44h28" stroke="#000" opacity=".15"/>
-  <!-- belt -->
-  <rect x="24" y="60" width="28" height="6" fill="#000" opacity=".18"/>
-  <!-- legs -->
-  <path d="M30 62v18c0 4-2 6-4 6h-2" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
-  <path d="M42 62v16c0 6 4 10 10 10" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <path d="M32 19c2-2 5-3 8-3" stroke="#111" stroke-width="1.5" fill="none" opacity=".55"/>
+  <!-- top (crop tee) -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v16H24V40z" fill="#ffffff" opacity=".95"/>
+  <path d="M24 44h28" stroke="#000" opacity=".12"/>
+  <!-- denim shorts -->
+  <path d="M24 56h28v12c0 3-2 5-5 5H29c-3 0-5-2-5-5V56z" fill="#2a6fb8"/>
+  <path d="M24 60h28" stroke="#0b2a45" opacity=".35"/>
+  <path d="M38 56v17" stroke="#0b2a45" opacity=".28"/>
+  <!-- legs (skin) -->
+  <path d="M30 70v10c0 4-2 6-4 6h-2" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M42 70v8c0 6 4 10 10 10" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
   <!-- boots -->
-  <path d="M18 86h14v6H18z" fill="#fff" opacity=".75"/>
-  <path d="M42 86h18v6H42z" fill="#fff" opacity=".75"/>
+  <path d="M18 86h14v6H18z" fill="#ffffff" opacity=".82"/>
+  <path d="M42 86h18v6H42z" fill="#ffffff" opacity=".82"/>
+  <!-- outline pop -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v28c0 3-2 5-5 5H29c-3 0-5-2-5-5V40z" fill="none" stroke="#000" opacity=".14"/>
 </svg>`),
 
   run2: svgToImg(`
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
   <rect width="64" height="96" fill="none"/>
   <!-- hair -->
-  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#3b2a24"/>
-  <path d="M46 30c10 3 13 12 8 19-3 4-9 5-13 0" fill="#3b2a24"/>
+  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#2f201b"/>
+  <path d="M46 30c10 3 13 12 8 19-3 4-9 5-13 0" fill="#2f201b"/>
   <!-- face -->
   <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
   <!-- eyes/liner -->
   <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
   <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-  <path d="M32 19c2-2 5-3 8-3" stroke="#111" stroke-width="1.5" fill="none" opacity=".6"/>
-  <!-- jacket -->
-  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v22H24V40z" fill="#ffffff" opacity=".92"/>
-  <path d="M24 44h28" stroke="#000" opacity=".15"/>
-  <!-- belt -->
-  <rect x="24" y="60" width="28" height="6" fill="#000" opacity=".18"/>
+  <path d="M32 19c2-2 5-3 8-3" stroke="#111" stroke-width="1.5" fill="none" opacity=".55"/>
+  <!-- top -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v16H24V40z" fill="#ffffff" opacity=".95"/>
+  <path d="M24 44h28" stroke="#000" opacity=".12"/>
+  <!-- denim shorts -->
+  <path d="M24 56h28v12c0 3-2 5-5 5H29c-3 0-5-2-5-5V56z" fill="#2a6fb8"/>
+  <path d="M24 60h28" stroke="#0b2a45" opacity=".35"/>
+  <path d="M38 56v17" stroke="#0b2a45" opacity=".28"/>
   <!-- legs (swap stride) -->
-  <path d="M30 62v16c0 6 4 10 10 10" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
-  <path d="M42 62v18c0 4-2 6-4 6h-2" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <path d="M30 70v8c0 6 4 10 10 10" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M42 70v10c0 4-2 6-4 6h-2" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
   <!-- boots -->
-  <path d="M28 86h18v6H28z" fill="#fff" opacity=".75"/>
-  <path d="M42 86h14v6H42z" fill="#fff" opacity=".75"/>
+  <path d="M28 86h18v6H28z" fill="#ffffff" opacity=".82"/>
+  <path d="M42 86h14v6H42z" fill="#ffffff" opacity=".82"/>
+  <!-- outline pop -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v28c0 3-2 5-5 5H29c-3 0-5-2-5-5V40z" fill="none" stroke="#000" opacity=".14"/>
+</svg>`),4v6H42z" fill="#fff" opacity=".75"/>
 </svg>`),
 
   jump: svgToImg(`
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="96" viewBox="0 0 64 96">
   <rect width="64" height="96" fill="none"/>
   <!-- hair -->
-  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#3b2a24"/>
-  <path d="M50 28c10 2 14 10 10 18-2 4-7 6-12 2" fill="#3b2a24"/>
+  <path d="M26 18c0-8 6-14 14-14s14 6 14 14c0 7-4 12-10 14v6H30v-6c-2-1-4-2-4-14z" fill="#2f201b"/>
+  <path d="M50 28c10 2 14 10 10 18-2 4-7 6-12 2" fill="#2f201b"/>
   <!-- face -->
   <circle cx="38" cy="22" r="10" fill="#f2d6c7"/>
   <!-- eyes/liner -->
   <path d="M33 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
   <path d="M41 21h5" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-  <!-- jacket -->
-  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v20H24V40z" fill="#ffffff" opacity=".92"/>
-  <rect x="24" y="58" width="28" height="6" fill="#000" opacity=".18"/>
+  <!-- top -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v16H24V40z" fill="#ffffff" opacity=".95"/>
+  <!-- denim shorts -->
+  <path d="M24 56h28v12c0 3-2 5-5 5H29c-3 0-5-2-5-5V56z" fill="#2a6fb8"/>
+  <path d="M24 60h28" stroke="#0b2a45" opacity=".35"/>
+  <path d="M38 56v17" stroke="#0b2a45" opacity=".28"/>
   <!-- legs tucked -->
-  <path d="M30 62c0 10 8 10 10 16" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
-  <path d="M42 62c0 10-6 10-8 16" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".88"/>
+  <path d="M30 70c0 10 8 10 10 16" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M42 70c0 10-6 10-8 16" stroke="#f2d6c7" stroke-width="8" stroke-linecap="round"/>
   <!-- boots -->
-  <path d="M26 86h16v6H26z" fill="#fff" opacity=".75"/>
-  <path d="M38 86h18v6H38z" fill="#fff" opacity=".75"/>
-</svg>`)
+  <path d="M26 86h16v6H26z" fill="#ffffff" opacity=".82"/>
+  <path d="M38 86h18v6H38z" fill="#ffffff" opacity=".82"/>
+  <!-- outline pop -->
+  <path d="M24 40c2-8 8-12 14-12s12 4 14 12v28c0 3-2 5-5 5H29c-3 0-5-2-5-5V40z" fill="none" stroke="#000" opacity=".14"/>
+</svg>`),
 };
 
   // ---------- UI buttons ----------
@@ -749,6 +763,7 @@ if (player.invincible > 0) {
 }
 
 // draw sprite (64x96) aligned to player hitbox
+    ctx.imageSmoothingEnabled = true;
 ctx.drawImage(frame, sx - 10, sy - 18 + bob, 64, 96);
 
 // Crown mode outline (optional)
