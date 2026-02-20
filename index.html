@@ -3,28 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hot Cowgirl Singer Dash</title>
+    <title>Dakota Land</title>
     <style>
         body { margin: 0; background: #1e3a5f; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; overflow: hidden; }
-        canvas { border: 4px solid #8B4513; box-shadow: 0 0 30px rgba(0,0,0,0.6); }
+        canvas { border: 4px solid #8B4513; box-shadow: 0 0 30px rgba(0,0,0,0.6); outline: none; }
         #ui { position: absolute; top: 15px; left: 15px; color: white; font-size: 22px; text-shadow: 2px 2px 6px black; pointer-events: none; }
         #startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; }
         h1 { font-size: 52px; margin: 10px; text-shadow: 3px 3px 8px #ff1493; }
         p { font-size: 24px; margin: 8px; }
+        #jumpBtn { position: absolute; bottom: 20px; right: 20px; width: 100px; height: 100px; background: #ff3366; border: none; border-radius: 50%; color: white; font-size: 20px; font-weight: bold; opacity: 0.8; cursor: pointer; pointer-events: all; }
+        #jumpBtn:active { transform: scale(0.9); }
     </style>
 </head>
 <body>
-    <canvas id="game" width="800" height="500"></canvas>
+    <canvas id="game" width="800" height="500" tabindex="0"></canvas>
     <div id="ui">
         <div>Score: <span id="score">0</span></div>
         <div>Distance: <span id="dist">0</span>m</div>
     </div>
 
     <div id="startScreen">
-        <h1>🤠 HOT COWGIRL DASH 🎤</h1>
+        <h1>🤠 Dakota Land 🎤</h1>
         <p>Brunette Singer Edition</p>
         <p>← → or A D : Run<br>↑ or SPACE : Jump<br><br>Click or SPACE to Start</p>
     </div>
+
+    <button id="jumpBtn" title="Jump!">JUMP</button>
 
     <script>
         const canvas = document.getElementById('game');
@@ -32,6 +36,10 @@
         const scoreEl = document.getElementById('score');
         const distEl = document.getElementById('dist');
         const startScreen = document.getElementById('startScreen');
+        const jumpBtn = document.getElementById('jumpBtn');
+
+        // FIX: Make canvas focusable & auto-focus
+        canvas.focus();
 
         let gameState = { mode: 'start', score: 0, distance: 0 };
         let keys = {};
@@ -50,15 +58,29 @@
         let coins = [];
         let tumbleweeds = [];
 
+        // FIXED KEY HANDLING: Prevent spacebar scroll + focus on click
         document.addEventListener('keydown', e => { 
+            if (e.code === 'Space') {
+                e.preventDefault();
+            }
             keys[e.code] = true;
             if ((e.code === 'Space' || e.code === 'ArrowUp') && gameState.mode === 'start') startGame();
             if (e.code === 'Space' && gameState.mode === 'gameover') reset();
         });
-        document.addEventListener('keyup', e => keys[e.code] = false);
+        document.addEventListener('keyup', e => { 
+            keys[e.code] = false; 
+        });
         canvas.addEventListener('click', () => {
+            canvas.focus(); // Keep focus
             if (gameState.mode === 'start') startGame();
             if (gameState.mode === 'gameover') reset();
+        });
+        jumpBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (player.onGround && gameState.mode === 'playing') {
+                player.vy = player.jumpPower;
+                player.onGround = false;
+            }
         });
 
         function startGame() {
@@ -75,6 +97,7 @@
             gameState.score = 0; gameState.distance = 0;
             gameState.mode = 'playing';
             spawnChunk(600);
+            canvas.focus();
         }
 
         function spawnChunk(startX) {
@@ -116,9 +139,11 @@
             player.vx += (targetVx - player.vx) * player.accel;
             if (player.onGround) player.vx *= player.friction;
 
+            // FIXED JUMP: More reliable detection
             if ((keys['Space'] || keys['ArrowUp']) && player.onGround) {
                 player.vy = player.jumpPower;
                 player.onGround = false;
+                keys['Space'] = false; // Prevent holding jump
             }
 
             player.vy += 0.85; // gravity
@@ -131,6 +156,7 @@
             player.y += player.vy;
             handleCollisions(false);
 
+            // Ground check
             player.onGround = false;
             for (let p of platforms) {
                 if (player.x < p.x + p.w && player.x + player.width > p.x &&
@@ -176,7 +202,7 @@
             if (player.y > 620) die();
 
             gameState.distance = Math.floor(Math.max(0, player.x - 100) / 8);
-            gameState.score = Math.floor(gameState.distance * 2) + gameState.score; // keep coin bonus
+            gameState.score = Math.floor(gameState.distance * 2);
 
             scoreEl.textContent = gameState.score;
             distEl.textContent = gameState.distance;
@@ -251,13 +277,14 @@
             ctx.fillStyle = '#aaaaaa'; ctx.fillRect(18, 12 + armSwing*0.6, 6, 18);
             ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(21, 28 + armSwing*0.6, 3.5, 0, Math.PI*2); ctx.fill();
 
-            // Legs + boots
+            // Legs + boots (run animation)
+            const legOffset = runCycle * 0.5;
             ctx.fillStyle = '#2b5a8c';
-            ctx.fillRect(-14, 30, 11, 26);
-            ctx.fillRect(3, 30, 11, 26);
+            ctx.fillRect(-14 + legOffset*0.2, 30, 11, 26);
+            ctx.fillRect(3 - legOffset*0.2, 30, 11, 26);
             ctx.fillStyle = '#222';
-            ctx.fillRect(-17, 52, 14, 10);
-            ctx.fillRect(1, 52, 14, 10);
+            ctx.fillRect(-17 + legOffset*0.2, 52, 14, 10);
+            ctx.fillRect(1 - legOffset*0.2, 52, 14, 10);
 
             ctx.restore();
         }
@@ -288,6 +315,9 @@
             }
 
             drawCowgirl();
+
+            // Hide jump btn during gameover/start
+            jumpBtn.style.display = gameState.mode === 'playing' ? 'block' : 'none';
 
             if (gameState.mode === 'gameover') {
                 ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
